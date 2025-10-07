@@ -1,0 +1,24 @@
+.crypto-logo {
+  width: 32px;
+  height: 32px;
+  vertical-align: middle;
+}
+
+.positive-change {
+  color: #16c784;
+  font-weight: 500;
+}
+
+.negative-change {
+  color: #ea3943;
+  font-weight: 500;
+}
+
+td.mat-cell, th.mat-header-cell {
+  vertical-align: middle;
+}
+
+.favorite-star {
+  color: #ffc107; // Amarelo/dourado para a estrela favorita
+  font-weight: 900; // Deixa a estrela mais "cheia"
+}

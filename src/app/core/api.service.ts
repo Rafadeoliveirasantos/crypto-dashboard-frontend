@@ -27,5 +27,15 @@ export class ApiService {
       : this.http.delete(`${this.baseUrl}/settings/favorites/${id}`);
   }
 
+    // Adiciona uma moeda aos favoritos
+  addFavorite(cryptoId: string): Observable<any> {
+    return this.http.post(`${this.baseUrl}/cryptos/${cryptoId}/favorite`, {});
+  }
+
+  // Remove uma moeda dos favoritos
+  removeFavorite(cryptoId: string): Observable<any> {
+    return this.http.delete(`${this.baseUrl}/cryptos/${cryptoId}/favorite`);
+  }
+
   // Outros métodos conforme necessidade...
 }
