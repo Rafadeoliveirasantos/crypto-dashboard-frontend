@@ -1,47 +1,251 @@
-<div class="table-container">
-  <table mat-table [dataSource]="cryptos" class="mat-elevation-z8">
+<div class="crypto-dashboard">
+  
+  <!-- Cabeçalho com Título e Última Atualização -->
+  <div class="dashboard-header">
+    <h1>Dashboard de Criptomoedas</h1>
+    <div class="last-update">
+      <mat-icon>schedule</mat-icon>
+      Última atualização: {{ lastUpdate | date:'dd/MM/yyyy HH:mm:ss' }}
+    </div>
+  </div>
 
-    <!-- Coluna Logo -->
-    <ng-container matColumnDef="logo">
-      <th mat-header-cell *matHeaderCellDef> Logo </th>
-      <td mat-cell *matCellDef="let element"> 
-        <img [src]="element.logo" alt="Logo" class="crypto-logo">
-      </td>
-    </ng-container>
+  <!-- Barra de Ações (Busca, Filtros, Botões) -->
+  <div class="actions-bar">
+    
+    <!-- Campo de Busca -->
+    <mat-form-field appearance="outline" class="search-field">
+      <mat-label>Buscar por nome ou símbolo</mat-label>
+      <input matInput [formControl]="searchControl" placeholder="Ex: Bitcoin, BTC">
+      <mat-icon matPrefix>search</mat-icon>
+      <!-- 🆕 Botão para limpar busca -->
+      <button mat-icon-button matSuffix *ngIf="searchControl.value" (click)="searchControl.setValue('')">
+        <mat-icon>close</mat-icon>
+      </button>
+    </mat-form-field>
 
-    <!-- Coluna Nome -->
-    <ng-container matColumnDef="name">
-      <th mat-header-cell *matHeaderCellDef> Nome </th>
-      <td mat-cell *matCellDef="let element"> {{element.name}} ({{element.symbol}}) </td>
-    </ng-container>
+    <!-- Filtro de Variação -->
+    <mat-form-field appearance="outline" class="filter-field">
+      <mat-label>Filtrar por</mat-label>
+      <mat-select [formControl]="filterControl">
+        <mat-option value="all">Todas</mat-option>
+        <mat-option value="positive">📈 Variação Positiva</mat-option>
+        <mat-option value="negative">📉 Variação Negativa</mat-option>
+        <mat-option value="favorites">⭐ Apenas Favoritos</mat-option>
+      </mat-select>
+    </mat-form-field>
 
-    <!-- Coluna Preço -->
-    <ng-container matColumnDef="price">
-      <th mat-header-cell *matHeaderCellDef> Preço </th>
-      <td mat-cell *matCellDef="let element"> 
-        {{element.priceUsd | currency:'USD'}} / {{element.priceBrl | currency:'BRL'}} 
-      </td>
-    </ng-container>
+    <!-- Botões de Ação -->
+    <div class="action-buttons">
+      <button mat-raised-button color="primary" (click)="refreshData()" [disabled]="isLoading">
+        <mat-icon>refresh</mat-icon>
+        Atualizar
+      </button>
+      
+      <button mat-raised-button color="accent" (click)="exportFavorites()" [disabled]="isLoading">
+        <mat-icon>star</mat-icon>
+        Exportar Favoritos
+      </button>
+      
+      <button mat-raised-button (click)="exportAll()" [disabled]="isLoading">
+        <mat-icon>file_download</mat-icon>
+        Exportar Tudo
+      </button>
+    </div>
+  </div>
 
-    <!-- Coluna Variação 24h -->
-    <ng-container matColumnDef="change24h">
-      <th mat-header-cell *matHeaderCellDef> 24h </th>
-      <td mat-cell *matCellDef="let element" [ngClass]="element.variation24h >= 0 ? 'positive-change' : 'negative-change'">
-        ▲ {{element.variation24h | number:'1.2-2'}}%
-      </td>
-    </ng-container>
+  <!-- 🆕 Estatísticas Rápidas -->
+  <div class="stats-bar" *ngIf="!isLoading && cryptos.length > 0">
+    <div class="stat-card">
+      <mat-icon class="stat-icon">trending_up</mat-icon>
+      <div class="stat-content">
+        <span class="stat-label">Total de Cryptos</span>
+        <span class="stat-value">{{ cryptos.length }}</span>
+      </div>
+    </div>
+    
+    <div class="stat-card">
+      <mat-icon class="stat-icon positive">arrow_upward</mat-icon>
+      <div class="stat-content">
+        <span class="stat-label">Em Alta</span>
+        <span class="stat-value positive">{{ getPositiveCount() }}</span>
+      </div>
+    </div>
+    
+    <div class="stat-card">
+      <mat-icon class="stat-icon negative">arrow_downward</mat-icon>
+      <div class="stat-content">
+        <span class="stat-label">Em Baixa</span>
+        <span class="stat-value negative">{{ getNegativeCount() }}</span>
+      </div>
+    </div>
+    
+    <div class="stat-card">
+      <mat-icon class="stat-icon favorite">star</mat-icon>
+      <div class="stat-content">
+        <span class="stat-label">Favoritos</span>
+        <span class="stat-value">{{ getFavoritesCount() }}</span>
+      </div>
+    </div>
+  </div>
 
-    <!-- Coluna Favorito -->
-    <ng-container matColumnDef="favorite">
-      <th mat-header-cell *matHeaderCellDef> Favorito </th>
-      <td mat-cell *matCellDef="let element">
-        <button mat-icon-button (click)="toggleFavorite(element)">
-          <mat-icon [class.favorite-star]="element.isFavorite">star_outline</mat-icon>
-        </button>
-      </td>
-    </ng-container>
+  <!-- Indicador de Carregamento -->
+  <div class="loading-container" *ngIf="isLoading">
+    <mat-spinner diameter="50"></mat-spinner>
+    <p>Carregando dados das criptomoedas...</p>
+  </div>
 
-    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-  </table>
+  <!-- Tabela de Criptomoedas -->
+  <div class="table-container" *ngIf="!isLoading">
+    <table mat-table [dataSource]="filteredCryptos" class="mat-elevation-z8" matSort>
+
+      <!-- Coluna Logo -->
+  <ng-container matColumnDef="logo">
+    <th mat-header-cell *matHeaderCellDef> Logo </th>
+    <td mat-cell *matCellDef="let element"> 
+      <img 
+        [src]="element.logo" 
+        [alt]="element.symbol"
+        [title]="element.name"
+        class="crypto-logo"
+        (error)="onImageError($event)">
+    </td>
+  </ng-container>
+
+      <!-- Coluna Nome -->
+      <ng-container matColumnDef="name">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header> Nome </th>
+        <td mat-cell *matCellDef="let element"> 
+          <div class="crypto-name">
+            <strong>{{element.name}}</strong>
+            <span class="symbol">{{element.symbol}}</span>
+          </div>
+        </td>
+      </ng-container>
+
+      <!-- Coluna Preço -->
+      <ng-container matColumnDef="price">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header> Preço </th>
+        <td mat-cell *matCellDef="let element"> 
+          <div class="price-column">
+            <div class="price-usd">{{element.priceUsd | currency:'USD':'symbol':'1.2-6'}}</div>
+            <div class="price-brl">{{element.priceBrl | currency:'BRL':'symbol':'1.2-2'}}</div>
+          </div>
+        </td>
+      </ng-container>
+
+      <!-- 🆕 Coluna Variação 24h (MELHORADA) -->
+      <ng-container matColumnDef="change24h">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header> Variação 24h </th>
+        <td mat-cell *matCellDef="let element">
+          <div class="variation-badge" 
+               [ngClass]="element.variation24h >= 0 ? 'positive-change' : 'negative-change'">
+            <mat-icon class="variation-icon">
+              {{ element.variation24h >= 0 ? 'arrow_drop_up' : 'arrow_drop_down' }}
+            </mat-icon>
+            <span>{{element.variation24h | number:'1.2-2'}}%</span>
+          </div>
+        </td>
+      </ng-container>
+
+      <!-- Coluna Market Cap -->
+      <ng-container matColumnDef="marketCap">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header> Market Cap </th>
+        <td mat-cell *matCellDef="let element"> 
+          <div class="market-data">
+            {{element.marketCap | currency:'USD':'symbol':'1.0-0'}}
+          </div>
+        </td>
+      </ng-container>
+
+      <!-- Coluna Volume -->
+      <ng-container matColumnDef="volume">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header> Volume (24h) </th>
+        <td mat-cell *matCellDef="let element"> 
+          <div class="market-data">
+            {{element.volume | currency:'USD':'symbol':'1.0-0'}}
+          </div>
+        </td>
+      </ng-container>
+
+      <!-- Coluna Favorito -->
+      <ng-container matColumnDef="favorite">
+        <th mat-header-cell *matHeaderCellDef> Favorito </th>
+        <td mat-cell *matCellDef="let element">
+          <button 
+            mat-icon-button 
+            color="{{ element.isFavorite ? 'warn' : 'default' }}"
+            (click)="toggleFavorite(element)"
+            [attr.aria-label]="element.isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'"
+            matTooltip="{{ element.isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos' }}">
+            <mat-icon [class.favorite-star]="element.isFavorite">
+              {{ element.isFavorite ? 'star' : 'star_outline' }}
+            </mat-icon>
+          </button>
+        </td>
+      </ng-container>
+
+      <!-- 🆕 Coluna Ações (NOVA) -->
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef> Ações </th>
+        <td mat-cell *matCellDef="let element">
+          <button 
+            mat-icon-button 
+            [matMenuTriggerFor]="menu"
+            matTooltip="Mais opções">
+            <mat-icon>more_vert</mat-icon>
+          </button>
+          <mat-menu #menu="matMenu">
+            <button mat-menu-item (click)="viewDetails(element)">
+              <mat-icon>info</mat-icon>
+              <span>Ver Detalhes</span>
+            </button>
+            <button mat-menu-item (click)="createAlert(element)">
+              <mat-icon>notifications</mat-icon>
+              <span>Criar Alerta</span>
+            </button>
+            <button mat-menu-item (click)="compareWithOthers(element)">
+              <mat-icon>compare_arrows</mat-icon>
+              <span>Comparar</span>
+            </button>
+          </mat-menu>
+        </td>
+      </ng-container>
+
+      <!-- Linhas da Tabela -->
+      <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
+      <tr 
+        mat-row 
+        *matRowDef="let row; columns: displayedColumns;" 
+        class="table-row"
+        [class.favorite-row]="row.isFavorite"
+        (click)="onRowClick(row)">
+      </tr>
+    </table>
+
+    <!-- Mensagem quando não há resultados -->
+    <div class="no-results" *ngIf="filteredCryptos.length === 0 && !isLoading">
+      <mat-icon>search_off</mat-icon>
+      <h3>Nenhuma criptomoeda encontrada</h3>
+      <p class="hint">Tente ajustar os filtros ou buscar por outro termo</p>
+      <button mat-raised-button color="primary" (click)="clearFilters()">
+        <mat-icon>clear_all</mat-icon>
+        Limpar Filtros
+      </button>
+    </div>
+  </div>
+
+  <!-- Informações Adicionais (Footer) -->
+  <div class="footer-info" *ngIf="!isLoading && filteredCryptos.length > 0">
+    <div class="footer-content">
+      <p>
+        <mat-icon>info</mat-icon>
+        Exibindo <strong>{{ filteredCryptos.length }}</strong> de <strong>{{ cryptos.length }}</strong> criptomoedas
+      </p>
+      <p class="api-info">
+        <mat-icon>cloud</mat-icon>
+        Dados fornecidos por CoinGecko API
+      </p>
+    </div>
+  </div>
+
 </div>

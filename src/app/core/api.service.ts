@@ -6,36 +6,101 @@ import { Observable } from 'rxjs';
   providedIn: 'root'
 })
 export class ApiService {
-  private readonly baseUrl = 'https://localhost:7215/api';// Troque pela URL da sua API backend
+  private apiUrl = 'https://localhost:7215/api';
 
   constructor(private http: HttpClient) {}
 
-  // Buscar lista de criptomoedas
-  getCryptos(): Observable<any> {
-    return this.http.get(`${this.baseUrl}/cryptos`);
+  // ===== CRIPTOMOEDAS =====
+  
+  getCryptos(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/cryptos`);
   }
 
-  // Buscar detalhes de uma moeda específica
-  getCryptoDetail(id: string): Observable<any> {
-    return this.http.get(`${this.baseUrl}/cryptos/${id}`);
+  getCryptoDetails(id: string): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/cryptos/${id}`);
   }
 
-  // Atualizar favoritos
-  toggleFavorite(id: string, isFavorite: boolean): Observable<any> {
-    return isFavorite
-      ? this.http.post(`${this.baseUrl}/settings/favorites/${id}`, {})
-      : this.http.delete(`${this.baseUrl}/settings/favorites/${id}`);
+  getHistoricalData(id: string, days: number): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/cryptos/${id}/chart?days=${days}`);
   }
 
-    // Adiciona uma moeda aos favoritos
-  addFavorite(cryptoId: string): Observable<any> {
-    return this.http.post(`${this.baseUrl}/cryptos/${cryptoId}/favorite`, {});
+  // ===== FAVORITOS =====
+  
+  addFavorite(id: string): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/cryptos/${id}/favorite`, {});
   }
 
-  // Remove uma moeda dos favoritos
-  removeFavorite(cryptoId: string): Observable<any> {
-    return this.http.delete(`${this.baseUrl}/cryptos/${cryptoId}/favorite`);
+  removeFavorite(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/cryptos/${id}/favorite`);
   }
 
-  // Outros métodos conforme necessidade...
+  getFavorites(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/cryptos/favorites`);
+  }
+
+  // ===== CONFIGURAÇÕES - CORRIGIDO =====
+  
+  // 🆕 Método específico para buscar o intervalo (retorna número)
+  getUpdateInterval(): Observable<number> {
+    return this.http.get<number>(`${this.apiUrl}/settings/update-interval`);
+  }
+
+  // Método genérico para buscar todas as configurações (retorna objeto)
+  getSettings(): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/settings`);
+  }
+
+  // ===== EXPORTAÇÃO =====
+  
+  exportFavorites(format: string): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/export/favorites?format=${format}`, {
+      responseType: 'blob'
+    });
+  }
+
+  exportAll(format: string): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/export/all?format=${format}`, {
+      responseType: 'blob'
+    });
+  }
+
+  // ===== ALERTAS (se implementado) =====
+  
+  createAlert(cryptoId: string, targetPrice: number): Observable<any> {
+    return this.http.post(`${this.apiUrl}/cryptos/${cryptoId}/alerts`, {
+      targetPrice,
+      condition: 'above' // ou 'below'
+    });
+  }
+
+  getAlerts(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/cryptos/alerts`);
+  }
+
+  deleteAlert(alertId: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/cryptos/alerts/${alertId}`);
+  }
+
+  // ===== ESTATÍSTICAS =====
+  
+  getTopGainers(count: number = 5): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/cryptos/stats/top-gainers?count=${count}`);
+  }
+
+  getTopLosers(count: number = 5): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/cryptos/stats/top-losers?count=${count}`);
+  }
+
+  // ===== COMPARAÇÃO =====
+  
+  compareCryptos(ids: string[]): Observable<any[]> {
+    const idsParam = ids.join(',');
+    return this.http.get<any[]>(`${this.apiUrl}/cryptos/compare?ids=${idsParam}`);
+  }
+
+  // ===== CONVERSÃO =====
+  
+  convertCurrency(from: string, to: string, amount: number): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/cryptos/convert?from=${from}&to=${to}&amount=${amount}`);
+  }
 }
