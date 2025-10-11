@@ -1,0 +1,36 @@
+<div class="coin-detail">
+    <header>
+        <button (click)="goBack()">Back</button>
+        <h1>Coin Detail</h1>
+    </header>
+    <div class="info-card">
+        <img [src]="coin.logo" alt="Coin Logo">
+        <h2>{{ coin.name }} ({{ coin.symbol }})</h2>
+        <p>Current Price: {{ coin.currentPrice | currency }}</p>
+        <p>Market Cap: {{ coin.marketCap | currency }}</p>
+        <p>24h Volume: {{ coin.volume | currency }}</p>
+        <p>Circulating Supply: {{ coin.circulatingSupply }}</p>
+    </div>
+    <section class="chart">
+        <h3>30-Day Price Chart</h3>
+        <app-price-chart [data]="coin.priceHistory"></app-price-chart>
+    </section>
+    <section class="currency-converter">
+        <h3>Currency Converter</h3>
+        <app-currency-converter [coin]="coin"></app-currency-converter>
+    </section>
+    <section class="additional-data">
+        <h3>Additional Data</h3>
+        <p>Market Cap: {{ coin.marketCap | currency }}</p>
+        <p>24h Volume: {{ coin.volume | currency }}</p>
+        <p>Circulating Supply: {{ coin.circulatingSupply }}</p>
+    </section>
+    <section class="useful-links">
+        <h3>Useful Links</h3>
+        <ul>
+            <li><a [href]="coin.website" target="_blank">Website</a></li>
+            <li><a [href]="coin.explorer" target="_blank">Explorer</a></li>
+            <li><a [href]="coin.github" target="_blank">GitHub</a></li>
+        </ul>
+    </section>
+</div>
