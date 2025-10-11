@@ -12,10 +12,11 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSortModule } from '@angular/material/sort';
 import { FormsModule, ReactiveFormsModule, FormControl } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
+import { MiniChartComponent } from '../components/mini-chart/mini-chart.component';
 import { interval, Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 
-// Interface simplificada (SEM propriedades de gráfico)
+// Interface com propriedade trend7d para gráficos
 interface Crypto {
   id: string;
   logo: string;
@@ -28,6 +29,7 @@ interface Crypto {
   volume: number;
   lastUpdate: string;
   isFavorite: boolean;
+  trend7d?: number[];
 }
 
 @Component({
@@ -46,7 +48,8 @@ interface Crypto {
     MatTooltipModule,
     MatSortModule,
     FormsModule,
-    ReactiveFormsModule
+    ReactiveFormsModule,
+    MiniChartComponent
   ],
   templateUrl: './crypto-list.component.html',
   styleUrls: ['./crypto-list.component.scss']
@@ -56,12 +59,13 @@ export class CryptoListComponent implements OnInit, OnDestroy {
   cryptos: Crypto[] = [];
   filteredCryptos: Crypto[] = [];
   
-  // Colunas da tabela
+  // Colunas da tabela (incluindo trend)
   displayedColumns: string[] = [
     'logo', 
     'name', 
     'price', 
-    'change24h', 
+    'change24h',
+    'trend',
     'marketCap', 
     'volume', 
     'favorite',
@@ -80,7 +84,7 @@ export class CryptoListComponent implements OnInit, OnDestroy {
   private subscriptions = new Subscription();
   private autoUpdateSubscription?: Subscription;
 
-  // 🆕 Rastreador de erros de imagem
+  // Rastreador de erros de imagem
   private hasImageError = new Set<string>();
 
 
@@ -107,12 +111,35 @@ export class CryptoListComponent implements OnInit, OnDestroy {
     this.apiService.getCryptos().subscribe({
       next: (data) => {
         console.log('✅ Dados recebidos:', data);
-        this.cryptos = data || [];
+        
+        // Mapeia dados incluindo trend7d
+        this.cryptos = (data || []).map((crypto: any) => {
+          const trend = crypto.trend7d 
+            || crypto.sparkline_in_7d?.price 
+            || crypto.sparklineIn7d?.price
+            || this.generateMockTrend(crypto.variation24h || 0);
+          
+          return {
+            id: crypto.id,
+            logo: crypto.imageUrl || crypto.logo || crypto.image,
+            name: crypto.name,
+            symbol: crypto.symbol,
+            priceUsd: crypto.priceUsd,
+            priceBrl: crypto.priceBrl,
+            variation24h: crypto.variation24h || 0,
+            marketCap: crypto.marketCap,
+            volume: crypto.volume24h || crypto.volume,
+            lastUpdate: crypto.lastUpdated || crypto.lastUpdate || new Date().toISOString(),
+            isFavorite: crypto.isFavorite || false,
+            trend7d: trend
+          };
+        });
+        
         this.applyFilters();
         this.lastUpdate = new Date();
         this.isLoading = false;
         
-        console.log(`✅ ${this.cryptos.length} criptomoedas carregadas`);
+        console.log(`✅ ${this.cryptos.length} criptomoedas carregadas com gráficos`);
       },
       error: (error) => {
         console.error('❌ Erro ao carregar criptomoedas:', error);
@@ -121,6 +148,24 @@ export class CryptoListComponent implements OnInit, OnDestroy {
         this.applyFilters();
       }
     });
+  }
+
+  // ===== GERAÇÃO DE DADOS MOCK PARA TREND =====
+
+  private generateMockTrend(variation: number): number[] {
+    const points = 7;
+    const baseValue = 100;
+    const trend: number[] = [baseValue];
+    const direction = variation >= 0 ? 1 : -1;
+    const volatility = Math.abs(variation) / 10;
+    
+    for (let i = 1; i < points; i++) {
+      const randomChange = (Math.random() - 0.5) * volatility * 2;
+      const newValue = trend[i - 1] + (direction * volatility) + randomChange;
+      trend.push(Math.max(newValue, baseValue * 0.8));
+    }
+    
+    return trend;
   }
 
   // ===== BUSCA E FILTROS =====
@@ -205,7 +250,27 @@ export class CryptoListComponent implements OnInit, OnDestroy {
       )
       .subscribe({
         next: (data) => {
-          this.cryptos = data || [];
+          this.cryptos = (data || []).map((crypto: any) => {
+            const trend = crypto.trend7d 
+              || crypto.sparkline_in_7d?.price 
+              || crypto.sparklineIn7d?.price
+              || this.generateMockTrend(crypto.variation24h || 0);
+            
+            return {
+              id: crypto.id,
+              logo: crypto.imageUrl || crypto.logo || crypto.image,
+              name: crypto.name,
+              symbol: crypto.symbol,
+              priceUsd: crypto.priceUsd,
+              priceBrl: crypto.priceBrl,
+              variation24h: crypto.variation24h || 0,
+              marketCap: crypto.marketCap,
+              volume: crypto.volume24h || crypto.volume,
+              lastUpdate: crypto.lastUpdated || crypto.lastUpdate || new Date().toISOString(),
+              isFavorite: crypto.isFavorite || false,
+              trend7d: trend
+            };
+          });
           this.applyFilters();
           this.lastUpdate = new Date();
           console.log('✅ Dados atualizados automaticamente');
@@ -340,19 +405,20 @@ export class CryptoListComponent implements OnInit, OnDestroy {
     // Define cores baseadas na primeira letra
     const getColor = (letter: string) => {
       const charCode = letter.charCodeAt(0);
-      if (charCode >= 65 && charCode <= 69) return { bg: '%234f46e5', fg: 'white' }; // A-E: Azul
-      if (charCode >= 70 && charCode <= 74) return { bg: '%2306b6d4', fg: 'white' }; // F-J: Ciano
-      if (charCode >= 75 && charCode <= 79) return { bg: '%2310b981', fg: 'white' }; // K-O: Verde
-      if (charCode >= 80 && charCode <= 84) return { bg: '%23f59e0b', fg: 'white' }; // P-T: Laranja
-      return { bg: '%23ef4444', fg: 'white' }; // U-Z: Vermelho
+      const hue = (charCode * 7) % 360;
+      return `hsl(${hue}, 70%, 60%)`;
     };
     
     const color = getColor(initial);
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+        <rect width="32" height="32" fill="${color}" rx="16"/>
+        <text x="16" y="21" font-family="Arial" font-size="16" font-weight="bold" 
+              fill="white" text-anchor="middle">${initial}</text>
+      </svg>
+    `;
     
-    // Cria SVG com inicial e cor personalizada
-    const placeholderSvg = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='${color.bg}'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.35em' fill='${color.fg}' font-size='16' font-weight='bold' font-family='Arial, sans-serif'%3E${initial}%3C/text%3E%3C/svg%3E`;
-    
-    event.target.src = placeholderSvg;
+    event.target.src = 'data:image/svg+xml;base64,' + btoa(svg);
   }
 
   // ===== EXPORTAÇÃO =====
