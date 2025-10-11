@@ -703,6 +703,19 @@ button:focus-visible,
   outline-offset: 2px;
 }
 
+.no-data {
+  color: #999;
+  font-size: 12px;
+  font-style: italic;
+}
+
+// Alinhamento da célula do gráfico
+td.mat-cell {
+  &:has(app-mini-chart) {
+    padding: 8px 16px;
+  }
+}
+
 // ===== IMPRESSÃO =====
 @media print {
   .actions-bar,

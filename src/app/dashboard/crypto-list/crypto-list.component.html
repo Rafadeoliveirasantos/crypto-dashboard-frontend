@@ -147,6 +147,23 @@
         </td>
       </ng-container>
 
+      <!-- ✅ ADICIONE ESTA COLUNA DEPOIS DA COLUNA "change24h" -->
+
+<!-- Coluna Tendência 7 dias -->
+      <ng-container matColumnDef="trend">
+        <th mat-header-cell *matHeaderCellDef> Tendência (7d) </th>
+        <td mat-cell *matCellDef="let element">
+          <app-mini-chart 
+            *ngIf="element.trend7d && element.trend7d.length > 0"
+            [data]="element.trend7d"
+            [positive]="element.variation24h >= 0">
+          </app-mini-chart>
+          <span *ngIf="!element.trend7d || element.trend7d.length === 0" class="no-data">
+            N/A
+          </span>
+        </td>
+      </ng-container>
+
       <!-- Coluna Market Cap -->
       <ng-container matColumnDef="marketCap">
         <th mat-header-cell *matHeaderCellDef mat-sort-header> Market Cap </th>
@@ -217,8 +234,7 @@
         mat-row 
         *matRowDef="let row; columns: displayedColumns;" 
         class="table-row"
-        [class.favorite-row]="row.isFavorite"
-        (click)="onRowClick(row)">
+        [class.favorite-row]="row.isFavorite">
       </tr>
     </table>
 
